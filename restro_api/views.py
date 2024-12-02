@@ -6,15 +6,6 @@ from .models import User, Restaurant, Slot, Table
 from .serializers import UserSerializer, RestaurantSerializer, SlotSerializer, TableSerializer
 from collections import defaultdict
 from django.db.models import F
-
-# Create user (POST)
-class AddUserView(APIView):
-    def post(self, request):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 @api_view(['POST'])
 def add_user(request):
@@ -25,204 +16,136 @@ def add_user(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Get all users (GET)
-class GetUsersView(APIView):
-    def get(self, request):
-        users = User.objects.all()
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
+@api_view(['GET'])
+def get_users(request):
+    users = User.objects.all()
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data)
 
+@api_view(['GET', 'PUT', 'DELETE'])
+def user_detail(request, user_id):
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-# Get user by ID (GET)
-class GetUserView(APIView):
-    def get(self, request, user_id):
-        try:
-            user = User.objects.get(user_id=user_id)
-        except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    if request.method == 'GET':
         serializer = UserSerializer(user)
         return Response(serializer.data)
-
-
-# Update user (PUT)
-class UpdateUserView(APIView):
-    def put(self, request, user_id):
-        try:
-            user = User.objects.get(user_id=user_id)
-        except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    elif request.method == 'PUT':
         serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# Delete user (DELETE)
-class DeleteUserView(APIView):
-    def delete(self, request, user_id):
-        try:
-            user = User.objects.get(user_id=user_id)
-        except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    elif request.method == 'DELETE':
         user.delete()
         return Response({"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-
-class RestaurantListCreate(APIView):
-    def get(self, request):
+# RESTAURANT APIs
+@api_view(['GET', 'POST'])
+def restaurants(request):
+    if request.method == 'GET':
         restaurants = Restaurant.objects.all()
         serializer = RestaurantSerializer(restaurants, many=True)
         return Response(serializer.data)
-
-    def post(self, request):
+    elif request.method == 'POST':
         serializer = RestaurantSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET', 'PUT', 'DELETE'])
+def restaurant_detail(request, restaurant_id):
+    try:
+        restaurant = Restaurant.objects.get(pk=restaurant_id)
+    except Restaurant.DoesNotExist:
+        return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
 
-class RestaurantDetail(APIView):
-    def get(self, request, pk):
-        try:
-            restaurant = Restaurant.objects.get(pk=pk)
-        except Restaurant.DoesNotExist:
-            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    if request.method == 'GET':
         serializer = RestaurantSerializer(restaurant)
         return Response(serializer.data)
-
-    def put(self, request, pk):
-        try:
-            restaurant = Restaurant.objects.get(pk=pk)
-        except Restaurant.DoesNotExist:
-            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    elif request.method == 'PUT':
         serializer = RestaurantSerializer(restaurant, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        try:
-            restaurant = Restaurant.objects.get(pk=pk)
-        except Restaurant.DoesNotExist:
-            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    elif request.method == 'DELETE':
         restaurant.delete()
         return Response({"message": "Restaurant deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-
-class SlotListCreate(APIView):
-    def get(self, request):
+# SLOT APIs
+@api_view(['GET', 'POST'])
+def slots(request):
+    if request.method == 'GET':
         slots = Slot.objects.all()
         serializer = SlotSerializer(slots, many=True)
         return Response(serializer.data)
-
-    def post(self, request):
+    elif request.method == 'POST':
         serializer = SlotSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET', 'PUT', 'DELETE'])
+def slot_detail(request, slot_id):
+    try:
+        slot = Slot.objects.get(pk=slot_id)
+    except Slot.DoesNotExist:
+        return Response({"error": "Slot not found"}, status=status.HTTP_404_NOT_FOUND)
 
-class SlotDetail(APIView):
-    def get(self, request, pk):
-        try:
-            slot = Slot.objects.get(pk=pk)
-        except Slot.DoesNotExist:
-            return Response({"error": "Slot not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    if request.method == 'GET':
         serializer = SlotSerializer(slot)
         return Response(serializer.data)
-
-    def put(self, request, pk):
-        try:
-            slot = Slot.objects.get(pk=pk)
-        except Slot.DoesNotExist:
-            return Response({"error": "Slot not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    elif request.method == 'PUT':
         serializer = SlotSerializer(slot, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        try:
-            slot = Slot.objects.get(pk=pk)
-        except Slot.DoesNotExist:
-            return Response({"error": "Slot not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    elif request.method == 'DELETE':
         slot.delete()
         return Response({"message": "Slot deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-
+# TABLE APIs
 # Create Table (POST)
-@api_view(['POST'])
-def add_table(request):
-    if request.method == 'POST':
+@api_view(['GET', 'POST'])
+def tables(request):
+    if request.method == 'GET':
+        tables = Table.objects.all()
+        serializer = TableSerializer(tables, many=True)
+        return Response(serializer.data)
+    elif request.method == 'POST':
         serializer = TableSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# Get all Tables (GET)
-@api_view(['GET'])
-def get_tables(request):
-    if request.method == 'GET':
-        tables = Table.objects.all()
-        serializer = TableSerializer(tables, many=True)
-        return Response(serializer.data)
-
 # Get a specific Table by ID (GET)
-@api_view(['GET'])
-def get_table(request, pk):
+@api_view(['GET', 'PUT', 'DELETE'])
+def table_detail(request, table_id):
     try:
-        table = Table.objects.get(pk=pk)
+        table = Table.objects.get(pk=table_id)
     except Table.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Table not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
         serializer = TableSerializer(table)
         return Response(serializer.data)
-
-# Update Table (PUT)
-@api_view(['PUT'])
-def update_table(request, pk):
-    try:
-        table = Table.objects.get(pk=pk)
-    except Table.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'PUT':
+    elif request.method == 'PUT':
         serializer = TableSerializer(table, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# Delete Table (DELETE)
-@api_view(['DELETE'])
-def delete_table(request, pk):
-    try:
-        table = Table.objects.get(pk=pk)
-    except Table.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'DELETE':
+    elif request.method == 'DELETE':
         table.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Table deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-
-# import pdb
 
 # API to get available dates and slots for a restaurant
 @api_view(['GET'])
