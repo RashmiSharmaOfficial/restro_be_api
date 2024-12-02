@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Django",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/manage.py",
+      "args": ["runserver"],
+      "django": true,
+      "env": {
+        "PYTHONPATH": "/path/to/your/venv/lib/python3.x/site-packages",
+        "DJANGO_SETTINGS_MODULE": "restro_api.settings"
+      },
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}
