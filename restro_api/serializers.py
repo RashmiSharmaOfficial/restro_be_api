@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Restaurant, Slot, Table
+from .models import User, Restaurant, Slot, Table, Booking
 from django.contrib.auth.password_validation import validate_password
 
 class UserSerializer(serializers.ModelSerializer):
@@ -38,4 +38,10 @@ class TableSerializer(serializers.ModelSerializer):
 class SlotSerializer(serializers.ModelSerializer):
     class Meta:
         model = Slot
-        fields = '__all__'
+        fields = ['id', 'restaurant', 'date', 'time', 'tables', 'created_at']
+        read_only_fields = ['tables', 'created_at']  # Prevent direct modification of `tables`
+
+class BookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Booking
+        fields = ['id', 'customer_email', 'restaurant', 'slot', 'tables', 'num_of_people', 'created_at']
