@@ -1,0 +1,22 @@
+databases:
+  - name: restro_apidb
+    plan: free
+    databaseName: restro_api
+    user: restro_api
+
+services:
+  - type: web
+    plan: free
+    name: restro_api
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "python -m gunicorn restro_api.asgi:application -k uvicorn.workers.UvicornWorker"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: restro_apidb
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: 4
