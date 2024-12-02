@@ -7,6 +7,7 @@ from .serializers import UserSerializer, RestaurantSerializer, SlotSerializer, T
 from collections import defaultdict
 from django.db.models import F
 from datetime import datetime
+from django.contrib.auth import authenticate
     
 @api_view(['POST'])
 def add_user(request):
@@ -43,6 +44,22 @@ def user_detail(request, user_id):
         user.delete()
         return Response({"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+@api_view(['POST'])
+def login_user(request):
+    email = request.data.get('email')
+    password = request.data.get('password')
+
+    if not email or not password:
+        return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Authenticate the user
+    user = authenticate(username=email, password=password)
+
+    if user is not None:
+        return Response({"message": "Login successful."}, status=status.HTTP_200_OK)
+    else:
+        return Response({"error": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
+    
 # RESTAURANT APIs
 @api_view(['GET', 'POST'])
 def restaurants(request):

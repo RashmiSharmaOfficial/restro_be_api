@@ -53,6 +53,8 @@ urlpatterns = [
     # Admin route
     path('admin/', admin.site.urls),
 
+    path('login/', views.login_user, name='login_user'),
+    
     # User-related routes
     path('users/', views.get_users, name='get_users'),  # Get all users
     path('users/add/', views.add_user, name='add_user'),  # Add a user
