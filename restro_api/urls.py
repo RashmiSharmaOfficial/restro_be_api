@@ -54,7 +54,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('login/', views.login_user, name='login_user'),
-    
+    path('register-or-login/', views.register_or_login, name='register_or_login'),
+
+
     # User-related routes
     path('users/', views.get_users, name='get_users'),  # Get all users
     path('users/add/', views.add_user, name='add_user'),  # Add a user

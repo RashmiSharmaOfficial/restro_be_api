@@ -9,6 +9,7 @@ from django.db.models import Q
 from datetime import date, datetime, timedelta
 from django.contrib.auth import authenticate
 from django.db import transaction
+from django.contrib.auth.hashers import make_password
     
 @api_view(['POST'])
 def add_user(request):
@@ -61,7 +62,56 @@ def login_user(request):
         return Response({"message": "Login successful."}, status=status.HTTP_200_OK)
     else:
         return Response({"error": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
-    
+
+
+@api_view(['POST'])
+def register_or_login(request):
+    """
+    Handles user registration if the email doesn't exist or logs in if the user already exists.
+    """
+    email = request.data.get('email')
+    password = request.data.get('password')
+    role = request.data.get('role', 'customer')  # Default role is 'customer'
+
+    if not email or not password:
+        return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Check if the user already exists
+        user = User.objects.get(email=email)
+
+        # Try to authenticate the user
+        authenticated_user = authenticate(username=email, password=password)
+        if authenticated_user is not None:
+            return Response({
+                "email": email,
+                "id": user.user_id,
+                "role": user.role,
+                "message": "Success login"
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid password."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    except User.DoesNotExist:
+        # If user does not exist, create a new user
+        hashed_password = make_password(password)  # Hash the password before saving
+        user_data = {
+            "email": email,
+            "password": hashed_password,
+            "role": role
+        }
+        serializer = UserSerializer(data=user_data)
+        if serializer.is_valid():
+            new_user = serializer.save()
+            return Response({
+                "email": new_user.email,
+                "id": new_user.id,
+                "role": new_user.role,
+                "message": "User created successfully and logged in."
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+   
+
 # RESTAURANT APIs
 @api_view(['GET', 'POST'])
 def restaurants(request):
