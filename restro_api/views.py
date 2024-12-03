@@ -25,9 +25,10 @@ def get_users(request):
     return Response(serializer.data)
 
 @api_view(['GET', 'PUT', 'DELETE'])
-def user_detail(request, user_id):
+def user_detail(request, email):
     try:
-        user = User.objects.get(pk=user_id)
+        # Since email is the primary key, we use it to fetch the user
+        user = User.objects.get(pk=email)
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -43,6 +44,7 @@ def user_detail(request, user_id):
     elif request.method == 'DELETE':
         user.delete()
         return Response({"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
 
 @api_view(['POST'])
 def login_user(request):
@@ -68,6 +70,17 @@ def restaurants(request):
         serializer = RestaurantSerializer(restaurants, many=True)
         return Response(serializer.data)
     elif request.method == 'POST':
+        # Ensure that the email provided for the owner exists
+        owner_email = request.data.get('owner')
+        try:
+            # Check if the user with this email exists
+            owner = User.objects.get(pk=owner_email)
+        except User.DoesNotExist:
+            return Response({"error": "Owner with this email does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # If the user exists, associate the restaurant with the user
+        request.data['owner'] = owner_email  # Set the owner as the user's email
+
         serializer = RestaurantSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()

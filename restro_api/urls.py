@@ -58,7 +58,7 @@ urlpatterns = [
     # User-related routes
     path('users/', views.get_users, name='get_users'),  # Get all users
     path('users/add/', views.add_user, name='add_user'),  # Add a user
-    path('users/<int:user_id>/', views.user_detail, name='user_detail'),  # User detail operations (GET, PUT, DELETE)
+    path('users/<str:email>/', views.user_detail, name='user_detail'),  # User detail operations (GET, PUT, DELETE)
 
     # Restaurant-related routes
     path('restaurants/', views.restaurants, name='restaurants'),  # List all or add a restaurant
