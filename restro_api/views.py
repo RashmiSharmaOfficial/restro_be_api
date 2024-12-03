@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from .models import User, Restaurant, Slot, Table, Booking
 from .serializers import UserSerializer, RestaurantSerializer, SlotSerializer, TableSerializer, BookingSerializer
 from collections import defaultdict
-from django.db.models import F
-from datetime import datetime
+from django.db.models import Q
+from datetime import date, datetime, timedelta
 from django.contrib.auth import authenticate
     
 @api_view(['POST'])
@@ -25,10 +25,9 @@ def get_users(request):
     return Response(serializer.data)
 
 @api_view(['GET', 'PUT', 'DELETE'])
-def user_detail(request, email):
+def user_detail(request, user_id):
     try:
-        # Since email is the primary key, we use it to fetch the user
-        user = User.objects.get(pk=email)
+        user = User.objects.get(pk=user_id)
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -214,6 +213,68 @@ def auto_create_slots(request, restaurant_id):
 
     return Response(slots_data, status=status.HTTP_201_CREATED)
 
+@api_view(['POST'])
+def auto_create_multi_slots(request, restaurant_id):
+    """
+    Automatically creates slots for a restaurant based on its time slots and tables for a given date or range of dates.
+    """
+    try:
+        restaurant = Restaurant.objects.get(pk=restaurant_id)
+    except Restaurant.DoesNotExist:
+        return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Validate date input
+    start_date = request.data.get("startDate")
+    end_date = request.data.get("endDate")
+
+    if not start_date or not end_date:
+        return Response({"error": "startDate and endDate are required."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # added today's date as default to start making slots
+    today_date = date.today().strftime("%Y-%m-%d");
+    
+    try:
+        start_date = datetime.strptime(today_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        return Response({"error": "Invalid date format. Use 'YYYY-MM-DD'."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if start_date > end_date:
+        return Response({"error": "startDate cannot be after endDate."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Fetch the predefined time slots from the restaurant
+    time_slots = restaurant.time_slots
+    if not time_slots:
+        return Response({"error": "Restaurant does not have predefined time slots."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Fetch tables for the restaurant
+    tables = Table.objects.filter(restaurant=restaurant)
+    if not tables.exists():
+        return Response({"error": "No tables found for the restaurant."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Iterate over the date range and create slots
+    slots_data = []
+    current_date = start_date
+    while current_date <= end_date:
+        for time in time_slots:
+            slot_tables = [
+                {"table_id": table.id, "capacity": table.capacity, "remaining_quantity": table.quantity}
+                for table in tables
+            ]
+
+            # Create the Slot object
+            slot = Slot(
+                restaurant=restaurant,
+                date=current_date,
+                time=time,
+                tables=slot_tables
+            )
+            slot.save()
+            slots_data.append(SlotSerializer(slot).data)
+
+        current_date += timedelta(days=1)
+
+    return Response(slots_data, status=status.HTTP_201_CREATED)
 
 #slot_detail API (Retrieve, Update, Delete Slot)
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -248,6 +309,38 @@ def slot_detail(request, restaurant_id, slot_id):
         slot.delete()
         return Response({"message": "Slot deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+@api_view(['GET'])
+def search_restaurants(request):
+    """
+    Search for restaurants using a single keyword that can match multiple attributes.
+    """
+    try:
+        # Get the search keyword from query params
+        keyword = request.query_params.get('keyword', None)
+
+        if not keyword:
+            return Response({"error": "Keyword is required for search."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Filter restaurants by matching the keyword in multiple fields
+        restaurants = Restaurant.objects.filter(
+            Q(name__icontains=keyword) |
+            Q(city__icontains=keyword) |
+            Q(area__icontains=keyword) |
+            Q(cuisine__icontains=keyword) |
+            Q(rating__icontains=keyword) |  # In case users search for ratings
+            Q(cost_for_two__icontains=keyword)  # For cost-related searches
+        )
+
+        if not restaurants.exists():
+            return Response({"message": "No restaurants found matching the keyword."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the data
+        serializer = RestaurantSerializer(restaurants, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 
 # TABLE APIs
 # Create Table (POST)

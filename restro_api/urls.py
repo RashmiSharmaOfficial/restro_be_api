@@ -58,7 +58,8 @@ urlpatterns = [
     # User-related routes
     path('users/', views.get_users, name='get_users'),  # Get all users
     path('users/add/', views.add_user, name='add_user'),  # Add a user
-    path('users/<str:email>/', views.user_detail, name='user_detail'),  # User detail operations (GET, PUT, DELETE)
+    path('users/<int:user_id>/', views.user_detail, name='user_detail'),  # User detail operations (GET, PUT, DELETE)
+
 
     # Restaurant-related routes
     path('restaurants/', views.restaurants, name='restaurants'),  # List all or add a restaurant
@@ -69,11 +70,13 @@ urlpatterns = [
     path('restaurants/<int:restaurant_id>/slots/<int:slot_id>/', views.slot_detail, name='slot_detail'),  # Slot detail operations
 
     path('restaurants/<int:restaurant_id>/slots/auto-create/', views.auto_create_slots, name='auto_create_slots'), #automatic slot creation by date
+    path('restaurants/<int:restaurant_id>/slots/auto-create-multi/', views.auto_create_multi_slots, name='auto_create_multi_slots'), #automatic slot creation by date
 
     # Table-related routes
     path('restaurants/<int:restaurant_id>/tables/', views.restaurant_tables, name='restaurant_tables'),
     path('restaurants/<int:restaurant_id>/tables/bulk-add/', views.bulk_add_tables, name='bulk_add_tables'),
     path('restaurants/<int:restaurant_id>/tables/<int:table_id>/', views.restaurant_table_detail, name='restaurant_table_detail'),
+    path('restaurants/search/', views.search_restaurants, name='search_restaurants'),
 
     # Booking-related routes
     path('restaurants/<int:restaurant_id>/slots/<int:slot_id>/book/', views.book_table, name='book_table'),  # Booking a table for a specific slot

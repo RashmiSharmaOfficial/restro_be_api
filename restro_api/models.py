@@ -22,7 +22,8 @@ class User(AbstractBaseUser):
         ('customer', 'Customer'),
     ]
 
-    email = models.EmailField(primary_key=True)
+    user_id = models.BigAutoField(primary_key=True)
+    email = models.EmailField(unique=True, null=False)
     password = models.CharField(max_length=255, null=False)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
     created_at = models.DateTimeField(auto_now_add=True)
