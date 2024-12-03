@@ -105,7 +105,7 @@ def register_or_login(request):
             new_user = serializer.save()
             return Response({
                 "email": new_user.email,
-                "id": new_user.id,
+                "id": new_user.user_id,
                 "role": new_user.role,
                 "message": "User created successfully and logged in."
             }, status=status.HTTP_201_CREATED)
