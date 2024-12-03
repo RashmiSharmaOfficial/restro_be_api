@@ -8,6 +8,7 @@ from collections import defaultdict
 from django.db.models import Q
 from datetime import date, datetime, timedelta
 from django.contrib.auth import authenticate
+from django.db import transaction
     
 @api_view(['POST'])
 def add_user(request):
@@ -480,117 +481,109 @@ def book_table(request, restaurant_id, slot_id):
     serializer = BookingSerializer(booking)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+def book_tab(num_people, seats):
+    """
+    Function to allocate tables with minimum wastage.
+    Args:
+    num_people (int): Number of people to accommodate.
+    seats (dict): Dictionary with seat capacities and their available count.
+    Returns:
+    list: Allocated seats, or empty list if booking is not possible.
+    """
+    available_seats = []
+    for capacity, count in seats.items():
+        available_seats.extend([capacity] * count)
+    available_seats.sort(reverse=True)
 
+    # Try to allocate seats optimally
+    allocated_seats = []
+    total_people = 0
+    for seat in available_seats:
+        if total_people >= num_people:
+            break
+        if seat <= (num_people - total_people):
+            allocated_seats.append(seat)
+            total_people += seat
 
-# API to get available dates and slots for a restaurant
-# @api_view(['GET'])
-# def get_available_dates(request, restaurant_id):
-#     # Fetching all slots for a given restaurant
-#     slots = Slot.objects.filter(restaurant_id=restaurant_id).values('date', 'id', 'time', 'restaurant_id', 'created_at')
-    
-#     # Grouping slots by date
-#     date_slots = defaultdict(list)
-#     for slot in slots:
-#         # Convert date to string using isoformat
-#         slot['date'] = slot['date'].isoformat()
-#         slot['created_at'] = slot['created_at'].isoformat()  # Optionally convert created_at if it's a datetime object
-        
-#         date_slots[slot['date']].append({
-#             "id": slot['id'],
-#             "date": slot['date'],
-#             "time": slot['time'],
-#             "created_at": slot['created_at'],
-#             "restaurant": slot['restaurant_id']
-#         })
-    
-#     return Response(date_slots)
+    # Check if enough seats were allocated
+    if total_people >= num_people:
+        return allocated_seats
 
-# @api_view(['POST'])
-# def find_available_tables(request):
-#     slot_id = request.data.get('slot_id')
-#     num_people = request.data.get('num_people')
+    # If not, minimize wastage with combinations
+    return minimize_wastage_combination(num_people, available_seats)
 
-#     # Get the slot details
-#     try:
-#         slot = Slot.objects.get(id=slot_id)
-#     except Slot.DoesNotExist:
-#         return Response({"error": "Slot not found"}, status=status.HTTP_404_NOT_FOUND)
+def minimize_wastage_combination(num_people, available_seats):
+    """
+    Reduce wastage by combining larger seats optimally.
+    Args:
+    num_people (int): Number of people to accommodate.
+    available_seats (list): List of available seats.
+    Returns:
+    list: Optimal list of allocated seats.
+    """
+    best_combination = []
+    best_wastage = float('inf')
 
-#     restaurant_id = slot.restaurant.id
+    for i in range(1, len(available_seats) + 1):
+        for combination in combinations(available_seats, i):
+            if sum(combination) >= num_people:
+                wastage = sum(combination) - num_people
+                if wastage < best_wastage:
+                    best_wastage = wastage
+                    best_combination = combination
+                if wastage == 0:
+                    return list(best_combination)
+    return list(best_combination)
 
-#     # Fetch all available tables for the restaurant
-#     tables = Table.objects.filter(restaurant_id=restaurant_id)
+@api_view(['POST'])
+def book_table_api(request, restaurant_id, slot_id):
+    data = request.data
+    customer_email = data.get("customer_email")
+    num_of_people = data.get("num_of_people")
 
-#     # Sort tables by capacity (smallest to largest)
-#     tables = sorted(tables, key=lambda table: table.capacity)
+    # Input validation
+    try:
+        restaurant = Restaurant.objects.get(id=restaurant_id)
+    except Restaurant.DoesNotExist:
+        return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
 
-#     # List to store selected tables
-#     available_tables = []
+    if num_of_people <= 0:
+        return Response({"error": "Number of people must be greater than 0"}, status=status.HTTP_400_BAD_REQUEST)
 
-#     remaining_people = num_people
+    try:
+        with transaction.atomic():
+            # Lock the slot for this transaction
+            slot = Slot.objects.select_for_update().get(id=slot_id, restaurant=restaurant)
 
-#     for table in tables:
-#         # Use smaller tables to fit the remaining people as closely as possible
-#         while table.quantity > 0 and remaining_people >= table.capacity:
-#             available_tables.append({'table_id': table.id, 'capacity': table.capacity})
-#             remaining_people -= table.capacity
-#             table.quantity -= 1
+            # Prepare seat availability data
+            seat_map = {table["capacity"]: table["remaining_quantity"] for table in slot.tables}
 
-#         # If we can use this table for the exact remaining people
-#         if table.quantity > 0 and 0 < remaining_people <= table.capacity:
-#             available_tables.append({'table_id': table.id, 'capacity': table.capacity})
-#             remaining_people = 0
-#             table.quantity -= 1
-#             break
+            # Use the optimized logic to allocate tables
+            allocated_seats = book_tab(num_of_people, seat_map)
+            if not allocated_seats:
+                return Response({"error": "Insufficient tables to accommodate the booking"}, status=status.HTTP_400_BAD_REQUEST)
 
-#     # If there are still people left to accommodate, return an error
-#     if remaining_people > 0:
-#         return Response({"error": "Not enough tables available for the required number of people"})
+            # Update table availability
+            for seat in allocated_seats:
+                for table in slot.tables:
+                    if table["capacity"] == seat and table["remaining_quantity"] > 0:
+                        table["remaining_quantity"] -= 1
+                        break
 
-#     return Response({
-#         "message": "Tables found",
-#         "tables": available_tables
-#     })
+            # Save the updated slot and booking
+            slot.save()
+            booking = Booking.objects.create(
+                customer_email=customer_email,
+                restaurant=restaurant,
+                slot=slot,
+                tables=allocated_seats,
+                num_of_people=num_of_people
+            )
 
-# @api_view(['POST'])
-# def update_table_quantity(request):
-#     # Extract table_ids from the request
-#     table_ids = request.data.get('table_ids')
+        serializer = BookingSerializer(booking)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-#     # Decrease the quantity for each table
-#     for table_id in table_ids:
-#         table = Table.objects.get(id=table_id)
-#         if table.quantity > 0:
-#             table.quantity -= 1  # Decrease one table quantity
-#             table.save()
-#         else:
-#             return Response({"error": f"Table with id {table_id} is not available."}, status=400)
-    
-#     return Response({"message": "Tables successfully booked!"})
-
-# # Add Booking
-# @api_view(['POST'])
-# def add_booking(request):
-#     if request.method == 'POST':
-#         serializer = BookingSerializer(data=request.data)
-#         if serializer.is_valid():
-#             # Check if there's enough capacity in the selected slot for the number of people
-#             slot = serializer.validated_data['slot']
-#             tables = Table.objects.filter(restaurant=slot.restaurant, capacity__gte=slot.capacity)
-#             total_capacity = sum(table.capacity * table.quantity for table in tables)
-            
-#             if total_capacity >= request.data['number_of_people']:
-#                 serializer.save()
-#                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-#             else:
-#                 return Response({'error': 'Not enough available capacity'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# # Get Bookings (for a restaurant)
-# @api_view(['GET'])
-# def get_bookings(request, restaurant_id):
-#     if request.method == 'GET':
-#         bookings = Booking.objects.filter(restaurant__id=restaurant_id)
-#         serializer = BookingSerializer(bookings, many=True)
-#         return Response(serializer.data)
+    except Slot.DoesNotExist:
+        return Response({"error": "Slot not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

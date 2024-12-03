@@ -80,6 +80,7 @@ urlpatterns = [
 
     # Booking-related routes
     path('restaurants/<int:restaurant_id>/slots/<int:slot_id>/book/', views.book_table, name='book_table'),  # Booking a table for a specific slot
+    path('restaurants/<int:restaurant_id>/slots/<int:slot_id>/book-api/', views.book_table_api, name='book_table_api'),  # Booking a table for a specific slot
 
     # Additional features
     # path('restaurants/<int:restaurant_id>/available-dates/', views.get_available_dates, name='available_dates'),  # Get available dates for a restaurant
