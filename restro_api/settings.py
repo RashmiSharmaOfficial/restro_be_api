@@ -57,6 +57,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+AUTHENTICATION_BACKENDS = [
+    'restro_api.auth_backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',  # Include default backend for username-based auth
+]
+
 ROOT_URLCONF = 'restro_api.urls'
 
 TEMPLATES = [
