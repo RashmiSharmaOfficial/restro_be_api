@@ -31,7 +31,6 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
     'restro-api-33n2.onrender.com',
-    'https://restro-fe-kohl.vercel.app',
 ]
 
 
@@ -62,7 +61,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Your frontend URL
-    "https://your-frontend-production-url.com",  # Add other allowed domains here
+    "https://restro-fe-kohl.vercel.app",  # Add other allowed domains here
 ]
 
 AUTHENTICATION_BACKENDS = [
