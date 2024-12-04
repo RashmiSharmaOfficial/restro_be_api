@@ -31,7 +31,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
     'restro-api-33n2.onrender.com',
-    'https://crispy-bassoon-7jxvr9r7x7cwq7g-5173.app.github.dev'
+    'https://restro-fe-kohl.vercel.app',
 ]
 
 
